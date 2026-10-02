@@ -6,4 +6,14 @@ target/
 .vscode/
 .DS_Store
 
+# Anotacoes locais de trabalho (fora da entrega)
+.claude/
 
+# Entregaveis de submissao: gerados a partir do molde, nao versionados
+*.docx
+*.pdf
+~$*
+# Ferramental de montagem do documento academico: o molde institucional e o
+# script que o preenche ficam so na maquina do autor.
+docs/molde/
+scripts/gerar-documento.py

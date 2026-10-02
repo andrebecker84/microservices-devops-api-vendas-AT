@@ -1,15 +1,14 @@
 package com.example.vendas_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.example.vendas_service.models.Venda;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class VendaDTO {
-    private Long id;
-    private Long idProduto;
-    private Integer quantidade;
-    private Double preco;
+import java.math.BigDecimal;
+
+/** Representacao da venda na API, desacoplada da entidade JPA. */
+public record VendaDTO(Long id, Long idProduto, Integer quantidade, BigDecimal preco) {
+
+    public static VendaDTO de(Venda venda) {
+        return new VendaDTO(venda.getId(), venda.getIdProduto(), venda.getQuantidade(),
+                venda.getValorProduto());
+    }
 }

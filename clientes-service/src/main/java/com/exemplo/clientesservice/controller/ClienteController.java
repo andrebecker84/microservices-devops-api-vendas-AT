@@ -24,4 +24,11 @@ public class ClienteController {
     public List<Cliente> listarTodos() {
         return service.listarTodos();
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Cliente> buscarPorId(@PathVariable Long id) {
+        return service.buscarPorId(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }

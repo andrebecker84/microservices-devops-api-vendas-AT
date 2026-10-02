@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -18,19 +18,25 @@
     <description>Microservico de Produtos, registrado no Eureka</description>
 
     <properties>
-        <java.version>17</java.version>
-        <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <java.version>25</java.version>
+        <spring-cloud.version>2025.1.3</spring-cloud.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Boot 4: o console web do H2 virou modulo proprio -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-h2console</artifactId>
         </dependency>
 
         <dependency>

@@ -1,14 +1,7 @@
 package com.example.vendas_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class ProdutoDTO{
-    private Long id;
-    private String nome;
-    private Double preco;
+/** Produto como o produtos-service devolve em GET /produtos/{id}. */
+public record ProdutoDTO(Long id, String nome, BigDecimal preco) {
 }
