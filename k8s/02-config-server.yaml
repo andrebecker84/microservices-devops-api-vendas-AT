@@ -3,8 +3,13 @@ kind: ConfigMap                  # guarda os arquivos .properties do config-repo
 metadata:
   name: config-repo-files          # nome do ConfigMap
   namespace: ecommerce
+# Copia fiel dos arquivos de config-repo/: ao alterar um .properties la, repita a alteracao aqui.
 data:
   clientes-service.properties: |
+    # Configuracoes do clientes-service, centralizadas no Config Server.
+    # Este arquivo e' lido pelo config-server a partir da pasta config-repo
+    # e servido ao clientes-service quando ele sobe (spring.config.import=configserver:...).
+
     server.port=8083
 
     # H2 em memoria
@@ -13,9 +18,9 @@ data:
     spring.datasource.username=sa
     spring.datasource.password=
 
-    spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
     spring.jpa.hibernate.ddl-auto=update
     spring.jpa.show-sql=true
+    spring.jpa.open-in-view=false
 
     # Console web do H2, acessivel em http://localhost:8083/h2-console
     spring.h2.console.enabled=true
@@ -27,8 +32,53 @@ data:
     eureka.client.register-with-eureka=true
     eureka.instance.prefer-ip-address=true
   clientes-service-docker.properties: |
+    # Sobrescreve, apenas quando o profile "docker" estiver ativo,
+    # a URL do Eureka para o nome do serviço na rede Docker
+    # (em vez de localhost, que só funciona rodando fora de containers).
+    eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+  fornecedores-service.properties: |
+    # Configuracoes do fornecedores-service, centralizadas no Config Server.
+    # Este arquivo e' lido pelo config-server a partir da pasta config-repo
+    # e servido ao fornecedores-service quando ele sobe (spring.config.import=configserver:...).
+
+    server.port=8084
+
+    # H2 em memoria
+    spring.datasource.url=jdbc:h2:mem:fornecedoresdb
+    spring.datasource.driver-class-name=org.h2.Driver
+    spring.datasource.username=sa
+    spring.datasource.password=
+
+    # O Hibernate 7 detecta o dialeto do H2 sozinho; por isso nao ha database-platform aqui.
+    spring.jpa.hibernate.ddl-auto=update
+    spring.jpa.show-sql=true
+    # A sessao do JPA fecha junto com a transacao, nao no fim da requisicao HTTP.
+    spring.jpa.open-in-view=false
+
+    # Console web do H2, acessivel em http://localhost:8084/h2-console
+    spring.h2.console.enabled=true
+    spring.h2.console.path=/h2-console
+
+    # Feign para o produtos-service. Sem limite, um servico travado seguraria a requisicao
+    # pelo read-timeout padrao do Feign, de 60 segundos.
+    spring.cloud.openfeign.client.config.produtos-service.connect-timeout=2000
+    spring.cloud.openfeign.client.config.produtos-service.read-timeout=5000
+
+    # Registro no Eureka
+    eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+    eureka.client.fetch-registry=true
+    eureka.client.register-with-eureka=true
+    eureka.instance.prefer-ip-address=true
+  fornecedores-service-docker.properties: |
+    # Sobrescreve, apenas quando o profile "docker" estiver ativo,
+    # a URL do Eureka para o nome do servico na rede Docker
+    # (em vez de localhost, que so funciona rodando fora de containers).
     eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
   produtos-service.properties: |
+    # Configuracoes do produtos-service, centralizadas no Config Server.
+    # Este arquivo e' lido pelo config-server a partir da pasta config-repo
+    # e servido ao produtos-service quando ele sobe (spring.config.import=configserver:...).
+
     server.port=8081
 
     # H2 em memoria
@@ -37,9 +87,9 @@ data:
     spring.datasource.username=sa
     spring.datasource.password=
 
-    spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
     spring.jpa.hibernate.ddl-auto=update
     spring.jpa.show-sql=true
+    spring.jpa.open-in-view=false
 
     # Console web do H2, acessivel em http://localhost:8081/h2-console
     spring.h2.console.enabled=true
@@ -51,6 +101,9 @@ data:
     eureka.client.register-with-eureka=true
     eureka.instance.prefer-ip-address=true
   produtos-service-docker.properties: |
+    # Sobrescreve, apenas quando o profile "docker" estiver ativo,
+    # a URL do Eureka para o nome do serviço na rede Docker
+    # (em vez de localhost, que só funciona rodando fora de containers).
     eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
   vendas-service.properties: |
     server.port=8082
@@ -61,18 +114,25 @@ data:
     spring.datasource.username=sa
     spring.datasource.password=
 
-    spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
     spring.jpa.hibernate.ddl-auto=update
     spring.jpa.show-sql=true
+    spring.jpa.open-in-view=false
 
     spring.h2.console.enabled=true
     spring.h2.console.path=/h2-console
+
+    # Feign para o produtos-service: sem limite, um servico travado seguraria a venda por 60 s
+    spring.cloud.openfeign.client.config.produtos-service.connect-timeout=2000
+    spring.cloud.openfeign.client.config.produtos-service.read-timeout=5000
 
     eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
     eureka.client.fetch-registry=true
     eureka.client.register-with-eureka=true
     eureka.instance.prefer-ip-address=true
   vendas-service-docker.properties: |
+    # Sobrescreve, apenas quando o profile "docker" estiver ativo,
+    # a URL do Eureka para o nome do serviço na rede Docker
+    # (em vez de localhost, que só funciona rodando fora de containers).
     eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
 ---
 apiVersion: apps/v1            # versão da API do Kubernetes usada aqui
