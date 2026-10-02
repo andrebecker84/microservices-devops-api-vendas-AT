@@ -8,6 +8,13 @@ services:
       - "8761:8761"                # porta_da_maquina:porta_do_container -> localhost:8761
     networks:
       - microservicos-net           # entra na rede compartilhada com os outros serviços
+    healthcheck:
+      # "Pronto" = a porta ja aceita conexao. A imagem JRE nao tem curl,
+      # entao o proprio bash abre a conexao TCP (/dev/tcp).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8761"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   # --- Configurações centralizadas (lê o config-repo) ---
   config-server:
@@ -16,7 +23,7 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      # monta a pasta config-repo (do seu Mac) dentro do container em /config-repo
+      # monta a pasta config-repo dentro do container em /config-repo
       - ./config-repo:/config-repo
     environment:
       # backend "native" = le os .properties direto da pasta montada acima.
@@ -29,22 +36,31 @@ services:
       - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:///config-repo
     networks:
       - microservicos-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8888"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   # --- Serviço de produtos ---
   produtos-service:
     build: ./produtos-service
     container_name: produtos-service
-    depends_on:                    # só cria este container depois dos dois abaixo
-      - eureka-server               # (não garante que já estejam "prontos", só criados)
-      - config-server
+    depends_on:
+      # Espera o eureka e o config-server ficarem PRONTOS (healthcheck), e nao
+      # so criados. Sem isso, o servico podia subir antes do config-server e,
+      # com o import "optional:", ficava sem configuracao (porta 8080, sem Eureka).
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     environment:
       # troca "localhost" por "config-server", o nome do serviço na rede Docker
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
-      # produtos-service-docker.properties (sobrescreve a URL do Eureka)
+      # produtos-service-docker.properties, que troca "localhost" por
+      # "eureka-server" na URL do Eureka
       - SPRING_PROFILES_ACTIVE=docker
-      # troca "localhost" por "eureka-server", idem
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     ports:
       - "8081:8081"
     networks:
@@ -55,33 +71,56 @@ services:
     build: ./vendas-service
     container_name: vendas-service
     depends_on:
-      - eureka-server
-      - config-server
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
       # vendas-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     ports:
       - "8082:8082"
     networks:
       - microservicos-net
-  
+
+  # --- Serviço de clientes ---
   clientes-service:
     build: ./clientes-service
     container_name: clientes-service
     depends_on:
-      - eureka-server
-      - config-server
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
-      # vendas-service-docker.properties (sobrescreve a URL do Eureka)
+      # clientes-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     ports:
       - "8083:8083"
+    networks:
+      - microservicos-net
+
+  # --- Serviço de fornecedores (novo, porta 8084) ---
+  fornecedores-service:
+    build: ./fornecedores-service
+    container_name: fornecedores-service
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      # ativa o profile "docker", que faz o config-server servir também
+      # fornecedores-service-docker.properties, com o Eureka em
+      # http://eureka-server:8761/eureka/ (o nome do container na rede).
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "8084:8084"
     networks:
       - microservicos-net
 
@@ -90,9 +129,15 @@ services:
     build: ./gateway
     container_name: gateway
     depends_on:
-      - eureka-server               # gateway só precisa do eureka pra descobrir os serviços
+      eureka-server:                # gateway só precisa do eureka pra descobrir os serviços
+        condition: service_healthy
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      # O gateway nao usa o config-server, entao a URL do Eureka precisa chegar
+      # por aqui. EUREKA_CLIENT_SERVICEURL_DEFAULTZONE nao serve: serviceUrl e um
+      # Map, a variavel vira a chave minuscula "defaultzone" e o Eureka le
+      # "defaultZone" -- o gateway continuava procurando o Eureka em localhost e
+      # nao enxergava nenhum servico. Mesma solucao usada nos manifestos do k8s/.
+      - 'SPRING_APPLICATION_JSON={"eureka":{"client":{"serviceUrl":{"defaultZone":"http://eureka-server:8761/eureka/"}}}}'
     ports:
       - "8085:8085"
     networks:
