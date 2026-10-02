@@ -1,0 +1,92 @@
+### Roteiro do fornecedores-service para o HTTP Client do IntelliJ.
+### Execute cada requisicao pelo botao ao lado dela, na ordem.
+### Pre-requisito: eureka-server, config-server, produtos-service, fornecedores-service e gateway no ar.
+
+@direto = http://localhost:8084
+@gateway = http://localhost:8085/fornecedores-service
+
+### Ex. 5 - lista os fornecedores (os cinco da carga inicial)
+GET {{direto}}/fornecedores
+
+> {%
+    client.test("200 com os fornecedores", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.length >= 5, "esperava ao menos 5 registros");
+    });
+%}
+
+### Ex. 5 - busca por id existente
+GET {{direto}}/fornecedores/1
+
+> {%
+    client.test("200 com o fornecedor 1", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.id === 1, "id " + response.body.id);
+    });
+%}
+
+### Ex. 5 - id inexistente devolve 404
+GET {{direto}}/fornecedores/99
+
+> {%
+    client.test("404 para id inexistente", () => {
+        client.assert(response.status === 404, "status " + response.status);
+    });
+%}
+
+### Ex. 9 - cadastra um fornecedor novo (201 + id gerado)
+POST {{direto}}/fornecedores
+Content-Type: application/json
+
+{
+  "nome": "Zeta Componentes Ltda",
+  "cnpj": "65.123.478/0001-54"
+}
+
+> {%
+    client.test("201 com o objeto criado", () => {
+        client.assert(response.status === 201, "status " + response.status);
+        client.assert(response.body.id !== undefined, "sem id na resposta");
+    });
+    client.global.set("novoId", response.body.id);
+%}
+
+### Ex. 9 - o novo fornecedor aparece na busca
+GET {{direto}}/fornecedores/{{novoId}}
+
+### CNPJ repetido devolve 409
+POST {{direto}}/fornecedores
+Content-Type: application/json
+
+{
+  "nome": "Outra Empresa Ltda",
+  "cnpj": "11.222.333/0001-81"
+}
+
+> {%
+    client.test("409 para CNPJ ja cadastrado", () => {
+        client.assert(response.status === 409, "status " + response.status);
+    });
+%}
+
+### Ex. 10 - produtos obtidos do produtos-service via Feign
+GET {{direto}}/fornecedores/produtos
+
+> {%
+    client.test("200 com os produtos", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.length > 0, "lista vazia");
+    });
+%}
+
+### Ex. 8 - a lista de fornecedores pelo gateway (porta 8085)
+GET {{gateway}}/fornecedores
+
+> {%
+    client.test("200 vindo do gateway", () => {
+        client.assert(response.status === 200, "status " + response.status);
+    });
+%}
+
+### Ex. 7 - configuracao do servico, direto do config-server
+GET http://localhost:8888/fornecedores-service/default
