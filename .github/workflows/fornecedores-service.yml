@@ -1,0 +1,58 @@
+# CI do fornecedores-service: a cada push, em qualquer branch, baixa o codigo,
+# instala o JDK e compila o servico com o Maven, rodando tambem os testes.
+name: CI fornecedores-service
+
+on:
+  push:
+  # Permite disparar a mesma execucao manualmente pela aba Actions.
+  workflow_dispatch:
+
+# O pipeline so le o codigo: o token do GitHub nao recebe permissao de escrita.
+permissions:
+  contents: read
+
+# Dois pushes seguidos na mesma branch: a execucao antiga e cancelada.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar com Maven
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Cada servico e um projeto Maven independente; na raiz nao ha pom.xml.
+    defaults:
+      run:
+        working-directory: fornecedores-service
+
+    steps:
+      - name: Baixar o codigo do repositorio
+        uses: actions/checkout@v7
+
+      # O enunciado e a rubrica (criterio 5.3) citam o Java 17, a versao usada em sala. A entrega usa
+      # o Java 25, a LTS mais recente, para manter todas as tecnologias atualizadas: o codigo nao usa
+      # nada exclusivo do 25, o Spring Boot 4 roda a partir do 17, e pom.xml, workflow e imagens
+      # Docker usam a mesma versao. Justificativa completa na secao 1 de docs/RELATORIO_AT.md.
+      - name: Instalar o Java 25 (Temurin)
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          # Guarda o ~/.m2 entre execucoes, chaveado pelo pom.xml do servico.
+          cache: maven
+          cache-dependency-path: fornecedores-service/pom.xml
+
+      - name: Compilar e testar com o Maven
+        # verify = compile + testes + empacotamento do .jar.
+        # Os testes sobem a aplicacao com H2 e sem Eureka/Config Server,
+        # entao nao dependem de nenhum outro servico no ar.
+        run: mvn -B verify
+
+      - name: Publicar o relatorio dos testes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: relatorio-testes
+          path: fornecedores-service/target/surefire-reports/
